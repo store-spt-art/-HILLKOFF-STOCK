@@ -316,7 +316,7 @@
       <div class="expand-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>คลิกเพื่อดูตัวเลขรายเดือน</div>
     </div>
     <div class="chart-card full" data-chart="chartListingValue">
-      <h4>มูลค่าสินค้าที่ลงขายรายเดือน (บาท) — Facebook vs Shopee</h4>
+      <h4>มูลค่าสินค้าที่ลงขายรายเดือน (บาท)</h4>
       <div class="chart-wrap"><canvas id="chartListingValue"></canvas></div>
       <div class="expand-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>คลิกเพื่อดูตัวเลขรายเดือน</div>
     </div>
@@ -494,7 +494,7 @@ function computeAggregates(products) {
   // แนวโน้มการลงขายรายเดือน (จำนวนรายการ) แยกตามช่องทาง (FB / Shopee) — ดึงเดือนจากวันที่ในคอลัมน์ช่องทางการลงขาย 1/2
   const listingMonthly = {
     fb: Array(12).fill(0), shopee: Array(12).fill(0), fbUndated: 0, shopeeUndated: 0,
-    fbValue: Array(12).fill(0), shopeeValue: Array(12).fill(0)
+    fbValue: Array(12).fill(0), shopeeValue: Array(12).fill(0), combinedValue: Array(12).fill(0)
   };
   products.forEach(p => {
     const cat = categoryOf(p);
@@ -530,6 +530,7 @@ function computeAggregates(products) {
       if (qty > 0) {
         if (listedFB) listingMonthly.fbValue[m-1] += qty * price;
         if (listedShopee) listingMonthly.shopeeValue[m-1] += qty * price;
+        if (listedFB || listedShopee) listingMonthly.combinedValue[m-1] += qty * price;
       }
     }
   });
@@ -720,8 +721,7 @@ function buildListingValueConfig(agg, { large = false } = {}) {
     data: {
       labels: MONTH_LABELS,
       datasets: [
-        { label:"Facebook (บาท)", data: agg.listingMonthly.fbValue, backgroundColor: "#2F4A85", borderRadius: 2 },
-        { label:"Shopee (บาท)", data: agg.listingMonthly.shopeeValue, backgroundColor: "#B8541A", borderRadius: 2 }
+        { label:"มูลค่าสินค้าที่ลงขายแล้ว (บาท)", data: agg.listingMonthly.combinedValue, backgroundColor: "#5C7A52", borderRadius: 2 }
       ]
     },
     options: baseOptions({ large, valueFormat: large ? fmtBaht : null })
@@ -734,7 +734,7 @@ const CHART_DEFS = {
   chartShare:         { title:"สัดส่วนมูลค่าคงเหลือ",                                             build: buildShareConfig,         table: tableShare },
   chartChannel:       { title:"จำนวนสินค้าที่ลงขายแล้ว ตามช่องทาง",                                build: buildChannelConfig,       table: tableChannel },
   chartListingMonth:  { title:"แนวโน้มการลงขายรายเดือน — Facebook vs Shopee",                     build: buildListingMonthConfig,  table: tableListingMonth },
-  chartListingValue:  { title:"มูลค่าสินค้าที่ลงขายรายเดือน (บาท) — Facebook vs Shopee",           build: buildListingValueConfig,  table: tableListingValue }
+  chartListingValue:  { title:"มูลค่าสินค้าที่ลงขายรายเดือน (บาท)",                                build: buildListingValueConfig,  table: tableListingValue }
 };
 
 function renderCharts(agg) {
@@ -811,13 +811,12 @@ function tableListingMonth(agg) {
 function tableListingValue(agg) {
   let body = "";
   for (let m = 0; m < 12; m++) {
-    const f = agg.listingMonthly.fbValue[m], s = agg.listingMonthly.shopeeValue[m];
-    body += `<tr><td>${MONTH_LABELS[m]}</td><td>${fmtBaht(f)}</td><td>${fmtBaht(s)}</td><td>${fmtBaht(f+s)}</td></tr>`;
+    body += `<tr><td>${MONTH_LABELS[m]}</td><td>${fmtBaht(agg.listingMonthly.combinedValue[m])}</td></tr>`;
   }
-  const totalF = agg.listingMonthly.fbValue.reduce((a,b)=>a+b,0), totalS = agg.listingMonthly.shopeeValue.reduce((a,b)=>a+b,0);
-  body += `<tr><td>รวมทั้งปี</td><td>${fmtBaht(totalF)}</td><td>${fmtBaht(totalS)}</td><td>${fmtBaht(totalF+totalS)}</td></tr>`;
-  const note = `<p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px;">* มูลค่านี้คำนวณจากจำนวนที่ขายได้จริงในแต่ละเดือน (คอลัมน์ "จำนวนที่โอนออกแยกตามเดือน 2026") × ราคาขาย/หน่วย โดยนับเฉพาะสินค้าที่มีการลงขายในช่องทางนั้น (อ้างอิงจากคอลัมน์ "ช่องทางการลงขาย 1/2") — ถ้าสินค้าลงขายทั้ง Facebook และ Shopee มูลค่าจะถูกนับซ้ำในทั้งสองช่องทาง เพราะชีตไม่ได้แยกยอดขายรายชิ้นตามช่องทางไว้ต่างหาก</p>`;
-  return tableRows(`<thead><tr><th>เดือน</th><th>Facebook</th><th>Shopee</th><th>รวม</th></tr></thead><tbody>${body}</tbody>`) + note;
+  const total = agg.listingMonthly.combinedValue.reduce((a,b)=>a+b,0);
+  body += `<tr><td>รวมทั้งปี</td><td>${fmtBaht(total)}</td></tr>`;
+  const note = `<p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px;">* มูลค่านี้คำนวณจากจำนวนที่ขายได้จริงในแต่ละเดือน (คอลัมน์ "จำนวนที่โอนออกแยกตามเดือน 2026") × ราคาขาย/หน่วย โดยนับเฉพาะสินค้าที่มีการลงขาย (Facebook และ/หรือ Shopee — อ้างอิงจากคอลัมน์ "ช่องทางการลงขาย 1/2") นับรวมครั้งเดียวต่อสินค้าต่อเดือน แม้จะลงขายทั้งสองช่องทางพร้อมกันก็ไม่นับซ้ำ</p>`;
+  return tableRows(`<thead><tr><th>เดือน</th><th>มูลค่าที่ลงขายแล้ว</th></tr></thead><tbody>${body}</tbody>`) + note;
 }
 
 /* ---------- Modal: คลิกที่การ์ดกราฟเพื่อดูกราฟขนาดใหญ่ + ตัวเลขรายเดือน/หมวดหมู่ ---------- */
