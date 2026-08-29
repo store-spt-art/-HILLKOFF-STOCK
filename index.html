@@ -208,7 +208,9 @@
   .table-wrap{
     background:var(--paper-raised); border:1px solid var(--line);
     border-radius:var(--radius); overflow-x:auto;
+    max-height:66vh; overflow-y:auto;
   }
+  thead th{ position:sticky; top:0; z-index:2; }
   table{border-collapse:collapse;width:100%;font-size:13px;}
   thead th{
     text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em;
@@ -247,6 +249,26 @@
   .tag.fb{background:#E3EAF6;color:#2F4A85;}
   .tag.shopee{background:#FCE7DA;color:#B8541A;}
   .empty-state{padding:40px 20px;text-align:center;color:var(--ink-soft);font-size:13.5px;}
+
+  .month-group{border-bottom:1px solid var(--line);}
+  .month-group:last-child{border-bottom:none;}
+  .month-group summary{
+    list-style:none; cursor:pointer; padding:12px 6px;
+    display:flex; align-items:center; gap:8px; font-weight:600; font-size:13.5px; color:var(--ink);
+    user-select:none;
+  }
+  .month-group summary::-webkit-details-marker{display:none;}
+  .month-group summary::before{
+    content:"▸"; display:inline-block; color:var(--ink-soft); font-size:11px;
+    transition:transform .15s ease; width:10px;
+  }
+  .month-group[open] summary::before{transform:rotate(90deg);}
+  .month-group summary .count{
+    font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:11.5px;
+    color:var(--ink-soft); background:#E4E9E1; padding:1px 8px; border-radius:10px; margin-left:auto;
+  }
+  .month-group .month-items{padding:0 4px 6px;}
+  .month-group .log-item{padding-left:20px;}
 
   footer.note{text-align:center; font-size:11.5px; color:var(--ink-soft); padding:30px 20px 10px;}
 
@@ -911,43 +933,85 @@ function monthLabelOf(month) {
   return month || "-";
 }
 
-function renderMovementLog() {
-  const el = document.getElementById("movementLogList");
-  if (!STATE.movementLog.length) {
-    el.innerHTML = `<div class="empty-state">ยังไม่มีประวัติการเคลื่อนไหว</div>`;
+// แยกเดือน (1-12) จากวันที่รูปแบบ "DD-MM-YY" เช่น "23-08-69" -> 8
+function monthFromDateStr(dateStr) {
+  if (!dateStr) return null;
+  const parts = String(dateStr).trim().split('-');
+  if (parts.length !== 3) return null;
+  const mm = Number(parts[1]);
+  return (mm >= 1 && mm <= 12) ? mm : null;
+}
+
+// จัดกลุ่ม log ตามเดือน (1-12) โดยข้ามเดือนที่ไม่มีรายการ ส่วนรายการที่แยกเดือนไม่ได้จะรวมไว้ท้ายสุด
+function groupByMonth(rows, monthOf) {
+  const buckets = {};
+  const undated = [];
+  rows.forEach(row => {
+    const m = monthOf(row);
+    if (m) { (buckets[m] = buckets[m] || []).push(row); }
+    else { undated.push(row); }
+  });
+  const groups = [];
+  for (let m = 1; m <= 12; m++) {
+    if (buckets[m] && buckets[m].length) groups.push({ label: MONTH_LABELS[m-1], items: buckets[m] });
+  }
+  if (undated.length) groups.push({ label: "ไม่ระบุเดือน", items: undated });
+  return groups;
+}
+
+function renderGroupedLog(el, rows, monthOf, itemHtml, emptyText, openFirstN) {
+  if (!rows.length) {
+    el.innerHTML = `<div class="empty-state">${emptyText}</div>`;
     return;
   }
-  el.innerHTML = STATE.movementLog.map(row => {
-    const code = row.sku, name = row.name, qty = row.qty, note = row.note;
-    return `
+  const groups = groupByMonth(rows, monthOf);
+  el.innerHTML = groups.map((g, i) => `
+    <details class="month-group" ${i >= groups.length - openFirstN ? "open" : ""}>
+      <summary>${g.label} <span class="count">${g.items.length} รายการ</span></summary>
+      <div class="month-items">${g.items.map(itemHtml).join("")}</div>
+    </details>
+  `).join("");
+}
+
+function renderMovementLog() {
+  const el = document.getElementById("movementLogList");
+  renderGroupedLog(
+    el,
+    STATE.movementLog,
+    row => Number(row.month) || null,
+    row => `
       <div class="log-item">
         <span class="ts">${row.ts ? formatTs(row.ts) : "-"}</span>
         <span class="tag move">${monthLabelOf(row.month)}</span>
-        <span><span class="code-chip">${code}</span> ${name} — ${qty > 0 ? '+' : ''}${qty} ${note ? '· '+note : ''}</span>
+        <span><span class="code-chip">${row.sku}</span> ${row.name} — ${row.qty > 0 ? '+' : ''}${row.qty} ${row.note ? '· '+row.note : ''}</span>
         <span class="num"></span>
-      </div>`;
-  }).join("");
+      </div>`,
+    "ยังไม่มีประวัติการเคลื่อนไหว",
+    1
+  );
 }
 
 function renderListingLog() {
   const el = document.getElementById("listingLogList");
-  if (!STATE.listingLog.length) {
-    el.innerHTML = `<div class="empty-state">ยังไม่มีประวัติการลงขาย</div>`;
-    return;
-  }
-  el.innerHTML = STATE.listingLog.map(row => {
-    const code = row.sku, name = row.name, note = row.note;
-    const isFb = row.channel === "FB";
-    const tagClass = isFb ? "fb" : "shopee";
-    const tagLabel = isFb ? "Facebook" : "Shopee";
-    return `
+  renderGroupedLog(
+    el,
+    STATE.listingLog,
+    row => monthFromDateStr(row.date),
+    row => {
+      const isFb = row.channel === "FB";
+      const tagClass = isFb ? "fb" : "shopee";
+      const tagLabel = isFb ? "Facebook" : "Shopee";
+      return `
       <div class="log-item">
         <span class="ts">${row.date || "-"}</span>
         <span class="tag ${tagClass}">${tagLabel}</span>
-        <span><span class="code-chip">${code}</span> ${name} ${note ? '· '+note : ''}</span>
+        <span><span class="code-chip">${row.sku}</span> ${row.name} ${row.note ? '· '+row.note : ''}</span>
         <span class="num"></span>
       </div>`;
-  }).join("");
+    },
+    "ยังไม่มีประวัติการลงขาย",
+    1
+  );
 }
 
 
