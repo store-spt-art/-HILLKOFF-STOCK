@@ -324,6 +324,16 @@
     </div>
   </div>
 
+  <div class="section-title">ยอดรับเข้าอะไหล่รายเดือน</div>
+  <p class="section-note">อ้างอิงจากแท็บ "ยอดรับเข้าอะไหล่" โดยตรง — ผลรวมจำนวนอะไหล่ที่รับเข้าคลังทุกตัว แยกตามเดือน (ยังไม่เทียบกับยอดขาย/โอนออก)</p>
+  <div class="charts-grid">
+    <div class="chart-card full" data-chart="chartReceived">
+      <h4>ยอดรับเข้าอะไหล่ (จำนวนชิ้น) รายเดือน</h4>
+      <div class="chart-wrap"><canvas id="chartReceived"></canvas></div>
+      <div class="expand-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>คลิกเพื่อดูตัวเลขรายเดือน</div>
+    </div>
+  </div>
+
   <div class="section-title">ข้อมูลการลงขาย — Facebook / Shopee</div>
   <p class="section-note">อ้างอิงจากคอลัมน์ "ช่องทางการลงขาย 1" (FB) และ "ช่องทางการลงขาย 2" (Shopee) โดยตรง — เป็น <b>จำนวนรายการที่ลงขาย</b> (นับจากวันที่ลงขาย) ไม่ใช่ยอดขายเป็นบาท และไม่ปนกับกราฟยอดเคลื่อนไหวสต็อกด้านบน</p>
   <div class="charts-grid">
@@ -430,11 +440,12 @@
    ต่อกับ Apps Script Web App: วางลิงก์ที่ได้จาก Deploy > Web app ตรงนี้
    ปล่อยว่างไว้ = โหมดทดสอบด้วย mock data
    ========================================================================= */
-const API_URL = "https://script.google.com/macros/s/AKfycbz9Lsaapfq-hyaStJVILUMVMfUymK9W7x6JF3EAu9erLkbPsarQI35zpgwkWdwr88Me_w/exec"; // เช่น "https://script.google.com/macros/s/XXXXXXXX/exec"
+const API_URL = "https://script.google.com/macros/s/AKfycbwHImL61PrmqcJs-M3DvSjR0hCExcalhoitFG5VpkPt5R8OqtwepsmWOLrs016g8iSF1Q/exec"; // เช่น "https://script.google.com/macros/s/XXXXXXXX/exec"
 
 const MONTH_LABELS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 const COLOR_DEAD = "#A5432B";
 const COLOR_NORMAL = "#2F6F62";
+const COLOR_RECEIVED = "#8B5E3C";
 
 /* ---------------- Mock data (mirrors the real sheet's columns) --------- */
 let STATE = {
@@ -461,7 +472,9 @@ let STATE = {
     { sku:"GEN-0001", name:"แก้วปั่นสแตนเลส 1.5L (สต็อกหมุนเวียน)", channel:"SHOPEE", date:"05-01-69", note:"" },
     { sku:"GEN-0002", name:"ใบมีดเครื่องปั่นสแตนเลส (อะไหล่ขายดี)", channel:"FB", date:"05-01-69", note:"" },
     { sku:"GEN-0003", name:"สายไฟเครื่องครัวมาตรฐาน 1.5 เมตร", channel:"SHOPEE", date:"12-02-69", note:"" },
-  ]
+  ],
+  // "ยอดรับเข้าอะไหล่รายเดือน" — มาจากแท็บ "ยอดรับเข้าอะไหล่" (รวมทุกอะไหล่ต่อเดือน) index 0 = ม.ค.
+  receivedMonthly: [3020, 20, 110, 985, 30, 260, 434, 44, 0, 0, 0, 0]
 };
 
 const isLive = () => API_URL && API_URL.trim().length > 0;
@@ -750,13 +763,27 @@ function buildListingValueConfig(agg, { large = false } = {}) {
   };
 }
 
+function buildReceivedConfig(agg, { large = false } = {}) {
+  return {
+    type: "bar",
+    data: {
+      labels: MONTH_LABELS,
+      datasets: [
+        { label:"ยอดรับเข้าอะไหล่ (ชิ้น)", data: agg.receivedMonthly || Array(12).fill(0), backgroundColor: COLOR_RECEIVED, borderRadius: 2 }
+      ]
+    },
+    options: baseOptions({ large, valueFormat: large ? fmtInt : null })
+  };
+}
+
 const CHART_DEFS = {
   chartQty:           { title:"ยอดเคลื่อนไหว (จำนวนชิ้น) รายเดือน — Dead Stock vs สินค้าทั่วไป", build: buildQtyConfig,           table: tableQty },
   chartValue:         { title:"มูลค่ายอดเคลื่อนไหว (บาท) รายเดือน — Dead Stock vs สินค้าทั่วไป", build: buildValueConfig,         table: tableValue },
   chartShare:         { title:"สัดส่วนมูลค่าคงเหลือ",                                             build: buildShareConfig,         table: tableShare },
   chartChannel:       { title:"จำนวนสินค้าที่ลงขายแล้ว ตามช่องทาง",                                build: buildChannelConfig,       table: tableChannel },
   chartListingMonth:  { title:"แนวโน้มการลงขายรายเดือน — Facebook vs Shopee",                     build: buildListingMonthConfig,  table: tableListingMonth },
-  chartListingValue:  { title:"มูลค่าสินค้าที่ลงขายรายเดือน (บาท)",                                build: buildListingValueConfig,  table: tableListingValue }
+  chartListingValue:  { title:"มูลค่าสินค้าที่ลงขายรายเดือน (บาท)",                                build: buildListingValueConfig,  table: tableListingValue },
+  chartReceived:      { title:"ยอดรับเข้าอะไหล่ (จำนวนชิ้น) รายเดือน",                              build: buildReceivedConfig,      table: tableReceived }
 };
 
 function renderCharts(agg) {
@@ -767,6 +794,7 @@ function renderCharts(agg) {
   upsertChart("chartChannel", buildChannelConfig(agg));
   upsertChart("chartListingMonth", buildListingMonthConfig(agg));
   upsertChart("chartListingValue", buildListingValueConfig(agg));
+  upsertChart("chartReceived", buildReceivedConfig(agg));
 }
 
 /* ---------- ตารางตัวเลขประกอบกราฟ (แสดงใน modal เมื่อคลิกกราฟ) ---------- */
@@ -839,6 +867,18 @@ function tableListingValue(agg) {
   body += `<tr><td>รวมทั้งปี</td><td>${fmtBaht(total)}</td></tr>`;
   const note = `<p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px;">* มูลค่านี้คำนวณจากจำนวนที่ขายได้จริงในแต่ละเดือน (คอลัมน์ "จำนวนที่โอนออกแยกตามเดือน 2026") × ราคาขาย/หน่วย โดยนับเฉพาะสินค้าที่มีการลงขาย (Facebook และ/หรือ Shopee — อ้างอิงจากคอลัมน์ "ช่องทางการลงขาย 1/2") นับรวมครั้งเดียวต่อสินค้าต่อเดือน แม้จะลงขายทั้งสองช่องทางพร้อมกันก็ไม่นับซ้ำ</p>`;
   return tableRows(`<thead><tr><th>เดือน</th><th>มูลค่าที่ลงขายแล้ว</th></tr></thead><tbody>${body}</tbody>`) + note;
+}
+
+function tableReceived(agg) {
+  const data = agg.receivedMonthly || Array(12).fill(0);
+  let body = "";
+  for (let m = 0; m < 12; m++) {
+    body += `<tr><td>${MONTH_LABELS[m]}</td><td>${fmtInt(data[m])}</td></tr>`;
+  }
+  const total = data.reduce((a,b)=>a+b,0);
+  body += `<tr><td>รวมทั้งปี</td><td>${fmtInt(total)}</td></tr>`;
+  const note = `<p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px;">* ผลรวมจำนวนอะไหล่ที่รับเข้าคลังทุกตัว จากแท็บ "ยอดรับเข้าอะไหล่" แยกตามเดือน ยังไม่ได้เทียบกับยอดขาย/โอนออก</p>`;
+  return tableRows(`<thead><tr><th>เดือน</th><th>ยอดรับเข้า (ชิ้น)</th></tr></thead><tbody>${body}</tbody>`) + note;
 }
 
 /* ---------- Modal: คลิกที่การ์ดกราฟเพื่อดูกราฟขนาดใหญ่ + ตัวเลขรายเดือน/หมวดหมู่ ---------- */
@@ -1044,6 +1084,7 @@ async function boot() {
     alert("โหลดข้อมูลไม่สำเร็จ: " + e.message);
   }
   const agg = computeAggregates(STATE.products.map(p => ({...p, code: p.code || p.sku})));
+  agg.receivedMonthly = STATE.receivedMonthly || Array(12).fill(0);
   renderSummary(agg);
   renderCharts(agg);
   renderProducts();
