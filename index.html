@@ -325,14 +325,20 @@
   </div>
 
   <div class="section-title">ยอดรับเข้าอะไหล่รายเดือน</div>
-  <p class="section-note">อ้างอิงจากแท็บ "ยอดรับเข้าอะไหล่" โดยตรง — ผลรวมจำนวนอะไหล่ที่รับเข้าคลังทุกตัว แยกตามเดือน (ยังไม่เทียบกับยอดขาย/โอนออก)</p>
+  <p class="section-note">อ้างอิงจากแท็บ "ยอดรับเข้าอะไหล่" โดยตรง — แยกเป็นจำนวน (ชิ้น) และมูลค่า (บาท จากราคาขาย/หน่วยในชีตหลัก) ยังไม่เทียบกับยอดขาย/โอนออก — ดูรายละเอียดว่าแต่ละเดือนมีอะไหล่ตัวไหนเข้าบ้างได้ที่แท็บ "ประวัติการรับเข้า" ด้านล่าง</p>
   <div class="charts-grid">
-    <div class="chart-card full" data-chart="chartReceived">
+    <div class="chart-card" data-chart="chartReceivedQty">
       <h4>ยอดรับเข้าอะไหล่ (จำนวนชิ้น) รายเดือน</h4>
-      <div class="chart-wrap"><canvas id="chartReceived"></canvas></div>
+      <div class="chart-wrap"><canvas id="chartReceivedQty"></canvas></div>
+      <div class="expand-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>คลิกเพื่อดูตัวเลขรายเดือน</div>
+    </div>
+    <div class="chart-card" data-chart="chartReceivedValue">
+      <h4>มูลค่ายอดรับเข้าอะไหล่ (บาท) รายเดือน</h4>
+      <div class="chart-wrap"><canvas id="chartReceivedValue"></canvas></div>
       <div class="expand-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>คลิกเพื่อดูตัวเลขรายเดือน</div>
     </div>
   </div>
+
 
   <div class="section-title">ข้อมูลการลงขาย — Facebook / Shopee</div>
   <p class="section-note">อ้างอิงจากคอลัมน์ "ช่องทางการลงขาย 1" (FB) และ "ช่องทางการลงขาย 2" (Shopee) โดยตรง — เป็น <b>จำนวนรายการที่ลงขาย</b> (นับจากวันที่ลงขาย) ไม่ใช่ยอดขายเป็นบาท และไม่ปนกับกราฟยอดเคลื่อนไหวสต็อกด้านบน</p>
@@ -358,6 +364,7 @@
     <button class="tab-btn active" data-tab="products">รายการสินค้า</button>
     <button class="tab-btn" data-tab="movements">ประวัติการเคลื่อนไหว</button>
     <button class="tab-btn" data-tab="listings">ประวัติการลงขาย</button>
+    <button class="tab-btn" data-tab="received">ประวัติการรับเข้า</button>
   </div>
 
   <!-- PRODUCTS PANEL -->
@@ -416,6 +423,13 @@
     </div>
   </div>
 
+  <!-- RECEIVED PANEL -->
+  <div class="panel" id="panel-received">
+    <div class="table-wrap" style="padding:6px 14px;">
+      <div class="log-list" id="receivedLogList"></div>
+    </div>
+  </div>
+
 </div>
 
 <div class="modal-overlay" id="chartModal">
@@ -440,7 +454,7 @@
    ต่อกับ Apps Script Web App: วางลิงก์ที่ได้จาก Deploy > Web app ตรงนี้
    ปล่อยว่างไว้ = โหมดทดสอบด้วย mock data
    ========================================================================= */
-const API_URL = "https://script.google.com/macros/s/AKfycbwHImL61PrmqcJs-M3DvSjR0hCExcalhoitFG5VpkPt5R8OqtwepsmWOLrs016g8iSF1Q/exec"; // เช่น "https://script.google.com/macros/s/XXXXXXXX/exec"
+const API_URL = "https://script.google.com/macros/s/AKfycbwyxfAxmLCi9yRj94q-jJ79ILSZKWsakMcOtDut2GefXQXi5_S6-eGbP5W8r0fdHh0uLQ/exec"; // เช่น "https://script.google.com/macros/s/XXXXXXXX/exec"
 
 const MONTH_LABELS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 const COLOR_DEAD = "#A5432B";
@@ -473,8 +487,17 @@ let STATE = {
     { sku:"GEN-0002", name:"ใบมีดเครื่องปั่นสแตนเลส (อะไหล่ขายดี)", channel:"FB", date:"05-01-69", note:"" },
     { sku:"GEN-0003", name:"สายไฟเครื่องครัวมาตรฐาน 1.5 เมตร", channel:"SHOPEE", date:"12-02-69", note:"" },
   ],
-  // "ยอดรับเข้าอะไหล่รายเดือน" — มาจากแท็บ "ยอดรับเข้าอะไหล่" (รวมทุกอะไหล่ต่อเดือน) index 0 = ม.ค.
-  receivedMonthly: [3020, 20, 110, 985, 30, 260, 434, 44, 0, 0, 0, 0]
+  // "ประวัติการรับเข้า" (mock) — รายการอะไหล่ที่รับเข้าคลังแต่ละตัว แต่ละเดือน จากแท็บ "ยอดรับเข้าอะไหล่"
+  // price มาจากการจับคู่รหัสกับ "ราคาขาย" ในชีตหลัก (เหมือนที่ backend ทำจริง)
+  receivedLog: [
+    { sku:"GEN-0001", name:"แก้วปั่นสแตนเลส 1.5L (สต็อกหมุนเวียน)", month:1, qty:20, price:320, value:6400 },
+    { sku:"GEN-0002", name:"ใบมีดเครื่องปั่นสแตนเลส (อะไหล่ขายดี)", month:1, qty:30, price:180, value:5400 },
+    { sku:"EQ-WC-0002", name:"Mosa Piston Valve แกนหัวบีบอลูมิเนียม 1610-009-01", month:3, qty:10, price:150, value:1500 },
+    { sku:"GEN-0003", name:"สายไฟเครื่องครัวมาตรฐาน 1.5 เมตร", month:4, qty:15, price:90, value:1350 },
+    { sku:"SP-BD-0025", name:"BBL800/35A Speed Control PCB บอร์ดคอนโทรล", month:4, qty:5, price:1500, value:7500 },
+    { sku:"GEN-0001", name:"แก้วปั่นสแตนเลส 1.5L (สต็อกหมุนเวียน)", month:6, qty:12, price:320, value:3840 },
+    { sku:"GEN-0002", name:"ใบมีดเครื่องปั่นสแตนเลส (อะไหล่ขายดี)", month:7, qty:18, price:180, value:3240 },
+  ]
 };
 
 const isLive = () => API_URL && API_URL.trim().length > 0;
@@ -763,16 +786,29 @@ function buildListingValueConfig(agg, { large = false } = {}) {
   };
 }
 
-function buildReceivedConfig(agg, { large = false } = {}) {
+function buildReceivedQtyConfig(agg, { large = false } = {}) {
   return {
     type: "bar",
     data: {
       labels: MONTH_LABELS,
       datasets: [
-        { label:"ยอดรับเข้าอะไหล่ (ชิ้น)", data: agg.receivedMonthly || Array(12).fill(0), backgroundColor: COLOR_RECEIVED, borderRadius: 2 }
+        { label:"ยอดรับเข้าอะไหล่ (ชิ้น)", data: agg.receivedMonthlyQty || Array(12).fill(0), backgroundColor: COLOR_RECEIVED, borderRadius: 2 }
       ]
     },
     options: baseOptions({ large, valueFormat: large ? fmtInt : null })
+  };
+}
+
+function buildReceivedValueConfig(agg, { large = false } = {}) {
+  return {
+    type: "bar",
+    data: {
+      labels: MONTH_LABELS,
+      datasets: [
+        { label:"มูลค่ายอดรับเข้าอะไหล่ (บาท)", data: agg.receivedMonthlyValue || Array(12).fill(0), backgroundColor: "#B08947", borderRadius: 2 }
+      ]
+    },
+    options: baseOptions({ large, valueFormat: large ? fmtBaht : null })
   };
 }
 
@@ -783,7 +819,8 @@ const CHART_DEFS = {
   chartChannel:       { title:"จำนวนสินค้าที่ลงขายแล้ว ตามช่องทาง",                                build: buildChannelConfig,       table: tableChannel },
   chartListingMonth:  { title:"แนวโน้มการลงขายรายเดือน — Facebook vs Shopee",                     build: buildListingMonthConfig,  table: tableListingMonth },
   chartListingValue:  { title:"มูลค่าสินค้าที่ลงขายรายเดือน (บาท)",                                build: buildListingValueConfig,  table: tableListingValue },
-  chartReceived:      { title:"ยอดรับเข้าอะไหล่ (จำนวนชิ้น) รายเดือน",                              build: buildReceivedConfig,      table: tableReceived }
+  chartReceivedQty:   { title:"ยอดรับเข้าอะไหล่ (จำนวนชิ้น) รายเดือน",                              build: buildReceivedQtyConfig,   table: tableReceivedQty },
+  chartReceivedValue: { title:"มูลค่ายอดรับเข้าอะไหล่ (บาท) รายเดือน",                              build: buildReceivedValueConfig, table: tableReceivedValue }
 };
 
 function renderCharts(agg) {
@@ -794,7 +831,8 @@ function renderCharts(agg) {
   upsertChart("chartChannel", buildChannelConfig(agg));
   upsertChart("chartListingMonth", buildListingMonthConfig(agg));
   upsertChart("chartListingValue", buildListingValueConfig(agg));
-  upsertChart("chartReceived", buildReceivedConfig(agg));
+  upsertChart("chartReceivedQty", buildReceivedQtyConfig(agg));
+  upsertChart("chartReceivedValue", buildReceivedValueConfig(agg));
 }
 
 /* ---------- ตารางตัวเลขประกอบกราฟ (แสดงใน modal เมื่อคลิกกราฟ) ---------- */
@@ -869,16 +907,49 @@ function tableListingValue(agg) {
   return tableRows(`<thead><tr><th>เดือน</th><th>มูลค่าที่ลงขายแล้ว</th></tr></thead><tbody>${body}</tbody>`) + note;
 }
 
-function tableReceived(agg) {
-  const data = agg.receivedMonthly || Array(12).fill(0);
+// จัดกลุ่มรายการที่รับเข้า (receivedLog) ตามเดือน เพื่อใช้แจงในตารางกำกับกราฟ
+function receivedItemsByMonth(agg) {
+  const byMonth = Array.from({ length: 12 }, () => []);
+  (agg.receivedLog || []).forEach(row => {
+    if (row.month >= 1 && row.month <= 12) byMonth[row.month - 1].push(row);
+  });
+  return byMonth;
+}
+
+function tableReceivedQty(agg) {
+  const data = agg.receivedMonthlyQty || Array(12).fill(0);
+  const byMonth = receivedItemsByMonth(agg);
   let body = "";
   for (let m = 0; m < 12; m++) {
     body += `<tr><td>${MONTH_LABELS[m]}</td><td>${fmtInt(data[m])}</td></tr>`;
+    const items = byMonth[m];
+    if (items.length) {
+      const detail = items.map(it => `${it.name} (${it.sku}) ×${fmtInt(it.qty)}`).join(" · ");
+      body += `<tr><td colspan="2" style="font-size:11.5px;color:var(--ink-soft);padding-top:0;">${detail}</td></tr>`;
+    }
   }
   const total = data.reduce((a,b)=>a+b,0);
   body += `<tr><td>รวมทั้งปี</td><td>${fmtInt(total)}</td></tr>`;
-  const note = `<p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px;">* ผลรวมจำนวนอะไหล่ที่รับเข้าคลังทุกตัว จากแท็บ "ยอดรับเข้าอะไหล่" แยกตามเดือน ยังไม่ได้เทียบกับยอดขาย/โอนออก</p>`;
+  const note = `<p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px;">* ผลรวมจำนวนอะไหล่ที่รับเข้าคลังทุกตัว จากแท็บ "ยอดรับเข้าอะไหล่" แยกตามเดือน ยังไม่ได้เทียบกับยอดขาย/โอนออก ดูรายการเต็มได้ที่แท็บ "ประวัติการรับเข้า"</p>`;
   return tableRows(`<thead><tr><th>เดือน</th><th>ยอดรับเข้า (ชิ้น)</th></tr></thead><tbody>${body}</tbody>`) + note;
+}
+
+function tableReceivedValue(agg) {
+  const data = agg.receivedMonthlyValue || Array(12).fill(0);
+  const byMonth = receivedItemsByMonth(agg);
+  let body = "";
+  for (let m = 0; m < 12; m++) {
+    body += `<tr><td>${MONTH_LABELS[m]}</td><td>${fmtBaht(data[m])}</td></tr>`;
+    const items = byMonth[m];
+    if (items.length) {
+      const detail = items.map(it => `${it.name} (${it.sku}) ×${fmtInt(it.qty)} = ${fmtBaht(it.value)}`).join(" · ");
+      body += `<tr><td colspan="2" style="font-size:11.5px;color:var(--ink-soft);padding-top:0;">${detail}</td></tr>`;
+    }
+  }
+  const total = data.reduce((a,b)=>a+b,0);
+  body += `<tr><td>รวมทั้งปี</td><td>${fmtBaht(total)}</td></tr>`;
+  const note = `<p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px;">* มูลค่า = จำนวนที่รับเข้า × ราคาขาย/หน่วย (จับคู่รหัสอะไหล่กับคอลัมน์ "ราคาขาย" ในชีตหลัก) ไม่ใช่ราคาทุนจริง เพราะชีตไม่มีคอลัมน์ราคาทุนแยกต่างหาก</p>`;
+  return tableRows(`<thead><tr><th>เดือน</th><th>มูลค่ารับเข้า (บาท)</th></tr></thead><tbody>${body}</tbody>`) + note;
 }
 
 /* ---------- Modal: คลิกที่การ์ดกราฟเพื่อดูกราฟขนาดใหญ่ + ตัวเลขรายเดือน/หมวดหมู่ ---------- */
@@ -1055,6 +1126,24 @@ function renderListingLog() {
 }
 
 
+function renderReceivedLog() {
+  const el = document.getElementById("receivedLogList");
+  renderGroupedLog(
+    el,
+    STATE.receivedLog || [],
+    row => Number(row.month) || null,
+    row => `
+      <div class="log-item">
+        <span class="ts">-</span>
+        <span class="tag" style="background:${COLOR_RECEIVED};color:#fff;">${monthLabelOf(row.month)}</span>
+        <span><span class="code-chip">${row.sku}</span> ${row.name} — รับเข้า ${fmtInt(row.qty)} ชิ้น (${fmtBaht(row.value)})</span>
+        <span class="num"></span>
+      </div>`,
+    "ยังไม่มีประวัติการรับเข้า",
+    1
+  );
+}
+
 function formatTs(ts) {
   const d = new Date(ts);
   if (isNaN(d)) return ts;
@@ -1075,6 +1164,21 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
   document.getElementById(id).addEventListener("change", renderProducts);
 });
 
+// รวมยอดรับเข้ารายเดือน (จำนวน + มูลค่า) จาก receivedLog — ใช้ทั้งโหมด mock และโหมด live
+// (โหมด live ก็มี receivedMonthlyQty/receivedMonthlyValue มาจาก backend แล้ว แต่คำนวณจาก log ซ้ำที่นี่
+// เพื่อให้แน่ใจว่ากราฟกับตารางแจงรายการตรงกันเป๊ะเสมอ)
+function deriveReceivedMonthly(log) {
+  const qty = Array(12).fill(0);
+  const value = Array(12).fill(0);
+  (log || []).forEach(row => {
+    if (row.month >= 1 && row.month <= 12) {
+      qty[row.month - 1] += Number(row.qty) || 0;
+      value[row.month - 1] += Number(row.value) || 0;
+    }
+  });
+  return { qty, value };
+}
+
 async function boot() {
   document.getElementById("modeBanner").style.display = isLive() ? "none" : "block";
   try {
@@ -1084,12 +1188,16 @@ async function boot() {
     alert("โหลดข้อมูลไม่สำเร็จ: " + e.message);
   }
   const agg = computeAggregates(STATE.products.map(p => ({...p, code: p.code || p.sku})));
-  agg.receivedMonthly = STATE.receivedMonthly || Array(12).fill(0);
+  const receivedMonthly = deriveReceivedMonthly(STATE.receivedLog || []);
+  agg.receivedMonthlyQty = receivedMonthly.qty;
+  agg.receivedMonthlyValue = receivedMonthly.value;
+  agg.receivedLog = STATE.receivedLog || [];
   renderSummary(agg);
   renderCharts(agg);
   renderProducts();
   renderMovementLog();
   renderListingLog();
+  renderReceivedLog();
 }
 boot();
 </script>
