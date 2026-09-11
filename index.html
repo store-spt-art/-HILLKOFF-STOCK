@@ -270,6 +270,15 @@
   .month-group .month-items{padding:0 4px 6px;}
   .month-group .log-item{padding-left:20px;}
 
+  /* รายการอะไหล่ที่รับเข้า แจงต่อท้ายแต่ละเดือน — จัดเรียงเป็นแถวเดียวกับสไตล์ "รายการสินค้า" (code-chip + ชื่อ + ตัวเลขชิดขวา) */
+  .received-item-list{display:flex; flex-direction:column; gap:6px;}
+  .received-item{
+    display:flex; align-items:center; gap:10px; font-size:12.5px; color:var(--ink);
+    padding:2px 0;
+  }
+  .received-item .name-cell{flex:1; max-width:none;}
+  .received-item .num{margin-left:auto; white-space:nowrap; font-family:'IBM Plex Mono',monospace; color:var(--ink-soft);}
+
   footer.note{text-align:center; font-size:11.5px; color:var(--ink-soft); padding:30px 20px 10px;}
 
   @media (max-width:900px){
@@ -454,7 +463,7 @@
    ต่อกับ Apps Script Web App: วางลิงก์ที่ได้จาก Deploy > Web app ตรงนี้
    ปล่อยว่างไว้ = โหมดทดสอบด้วย mock data
    ========================================================================= */
-const API_URL = "https://script.google.com/macros/s/AKfycbwyxfAxmLCi9yRj94q-jJ79ILSZKWsakMcOtDut2GefXQXi5_S6-eGbP5W8r0fdHh0uLQ/exec"; // เช่น "https://script.google.com/macros/s/XXXXXXXX/exec"
+const API_URL = "https://script.google.com/macros/s/AKfycbzR7WUGqGHGNslj_gUVwM9q86nFXAbIb98RxzVVmX798_1P0RKZQR0bxaoG-gWNmVJgNg/exec"; // เช่น "https://script.google.com/macros/s/XXXXXXXX/exec"
 
 const MONTH_LABELS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 const COLOR_DEAD = "#A5432B";
@@ -916,6 +925,21 @@ function receivedItemsByMonth(agg) {
   return byMonth;
 }
 
+// จัดเรียงรายการอะไหล่ที่รับเข้าในแต่ละเดือนให้เป็นระเบียบ (รหัสสินค้า A→Z) เหมือนการเรียงเริ่มต้นในตาราง "รายการสินค้า"
+function sortReceivedItems(items) {
+  return [...items].sort((a, b) => String(a.sku).localeCompare(String(b.sku)));
+}
+
+// แสดงรายการอะไหล่ที่รับเข้าเป็นแถวเดียวกับสไตล์ "รายการสินค้า" (code-chip + ชื่อสินค้า + ตัวเลขชิดขวา)
+function receivedItemRows(items, valueFmt) {
+  return `<div class="received-item-list">${sortReceivedItems(items).map(it => `
+    <div class="received-item">
+      <span class="code-chip">${it.sku}</span>
+      <span class="name-cell">${it.name}</span>
+      <span class="num">${valueFmt(it)}</span>
+    </div>`).join("")}</div>`;
+}
+
 function tableReceivedQty(agg) {
   const data = agg.receivedMonthlyQty || Array(12).fill(0);
   const byMonth = receivedItemsByMonth(agg);
@@ -924,13 +948,12 @@ function tableReceivedQty(agg) {
     body += `<tr><td>${MONTH_LABELS[m]}</td><td>${fmtInt(data[m])}</td></tr>`;
     const items = byMonth[m];
     if (items.length) {
-      const detail = items.map(it => `${it.name} (${it.sku}) ×${fmtInt(it.qty)}`).join(" · ");
-      body += `<tr><td colspan="2" style="font-size:11.5px;color:var(--ink-soft);padding-top:0;">${detail}</td></tr>`;
+      body += `<tr><td colspan="2" style="padding-top:0;">${receivedItemRows(items, it => `×${fmtInt(it.qty)}`)}</td></tr>`;
     }
   }
   const total = data.reduce((a,b)=>a+b,0);
   body += `<tr><td>รวมทั้งปี</td><td>${fmtInt(total)}</td></tr>`;
-  const note = `<p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px;">* ผลรวมจำนวนอะไหล่ที่รับเข้าคลังทุกตัว จากแท็บ "ยอดรับเข้าอะไหล่" แยกตามเดือน ยังไม่ได้เทียบกับยอดขาย/โอนออก ดูรายการเต็มได้ที่แท็บ "ประวัติการรับเข้า"</p>`;
+  const note = `<p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px;">* ผลรวมจำนวนอะไหล่ที่รับเข้าคลังทุกตัว จากแท็บ "ยอดรับเข้าอะไหล่" แยกตามเดือน (เรียงตามรหัสสินค้า A→Z) ยังไม่ได้เทียบกับยอดขาย/โอนออก ดูรายการเต็มได้ที่แท็บ "ประวัติการรับเข้า"</p>`;
   return tableRows(`<thead><tr><th>เดือน</th><th>ยอดรับเข้า (ชิ้น)</th></tr></thead><tbody>${body}</tbody>`) + note;
 }
 
@@ -942,13 +965,12 @@ function tableReceivedValue(agg) {
     body += `<tr><td>${MONTH_LABELS[m]}</td><td>${fmtBaht(data[m])}</td></tr>`;
     const items = byMonth[m];
     if (items.length) {
-      const detail = items.map(it => `${it.name} (${it.sku}) ×${fmtInt(it.qty)} = ${fmtBaht(it.value)}`).join(" · ");
-      body += `<tr><td colspan="2" style="font-size:11.5px;color:var(--ink-soft);padding-top:0;">${detail}</td></tr>`;
+      body += `<tr><td colspan="2" style="padding-top:0;">${receivedItemRows(items, it => `×${fmtInt(it.qty)} = ${fmtBaht(it.value)}`)}</td></tr>`;
     }
   }
   const total = data.reduce((a,b)=>a+b,0);
   body += `<tr><td>รวมทั้งปี</td><td>${fmtBaht(total)}</td></tr>`;
-  const note = `<p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px;">* มูลค่า = จำนวนที่รับเข้า × ราคาขาย/หน่วย (จับคู่รหัสอะไหล่กับคอลัมน์ "ราคาขาย" ในชีตหลัก) ไม่ใช่ราคาทุนจริง เพราะชีตไม่มีคอลัมน์ราคาทุนแยกต่างหาก</p>`;
+  const note = `<p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px;">* มูลค่า = จำนวนที่รับเข้า × ราคาขาย/หน่วย (จับคู่รหัสอะไหล่กับคอลัมน์ "ราคาขาย" ในชีตหลัก) ไม่ใช่ราคาทุนจริง เพราะชีตไม่มีคอลัมน์ราคาทุนแยกต่างหาก เรียงตามรหัสสินค้า A→Z</p>`;
   return tableRows(`<thead><tr><th>เดือน</th><th>มูลค่ารับเข้า (บาท)</th></tr></thead><tbody>${body}</tbody>`) + note;
 }
 
