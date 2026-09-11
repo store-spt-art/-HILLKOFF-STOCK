@@ -176,6 +176,23 @@
   }
   .modal-body thead th:first-child, .modal-body td:first-child{text-align:left;}
   .modal-body tbody td{padding:7px 10px; border-bottom:1px solid var(--line); text-align:right; font-family:'IBM Plex Mono',monospace;}
+
+  /* รายการอะไหล่ที่รับเข้าต่อเดือน (ในตาราง modal ของกราฟ ยอดรับเข้าอะไหล่) — ลิสต์อ่านง่าย แทนพารากราฟยาว */
+  .modal-body td.received-items-cell{
+    text-align:left; font-family:'IBM Plex Sans Thai','Noto Sans Thai',sans-serif;
+    padding:2px 10px 14px; border-bottom:1px solid var(--line); background:#FAFAF7;
+  }
+  .received-items-list{list-style:none; margin:6px 0 0; padding:0; display:flex; flex-direction:column;}
+  .received-items-list li{
+    display:flex; align-items:baseline; justify-content:space-between; gap:14px;
+    padding:4px 2px; border-bottom:1px dashed var(--line); font-size:12px; line-height:1.4;
+  }
+  .received-items-list li:last-child{border-bottom:none;}
+  .received-items-list .item-name{flex:1; color:var(--ink); text-align:left;}
+  .received-items-list .item-sku{color:var(--ink-soft); font-family:'IBM Plex Mono',monospace; font-size:10.5px;}
+  .received-items-list .item-qty{
+    flex-shrink:0; font-family:'IBM Plex Mono',monospace; font-weight:700; color:var(--rust); white-space:nowrap;
+  }
   .modal-body tbody tr:last-child{font-weight:700; background:#F1F4EE;}
   .modal-body tbody tr:hover{background:#F1F4EE;}
 
@@ -454,7 +471,7 @@
    ต่อกับ Apps Script Web App: วางลิงก์ที่ได้จาก Deploy > Web app ตรงนี้
    ปล่อยว่างไว้ = โหมดทดสอบด้วย mock data
    ========================================================================= */
-const API_URL = "https://script.google.com/macros/s/AKfycbz-17gv9r07D8Nj8ureIQ9N4fTx5L4BjrlqaIrnjZpgNQ-ugUGQdcWovIMQGXDM9mFsBg/exec"; // เช่น "https://script.google.com/macros/s/XXXXXXXX/exec"
+const API_URL = "https://script.google.com/macros/s/AKfycbwz4wSoV0Bbmu4Qu50AUQL_zGMWdN1D3n-EvDUPPCvNv8i27GqmbSVMWgmT5DpU5z8Ahg/exec"; // เช่น "https://script.google.com/macros/s/XXXXXXXX/exec"
 
 const MONTH_LABELS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 const COLOR_DEAD = "#A5432B";
@@ -920,17 +937,24 @@ function receivedItemsByMonth(agg) {
   return byMonth;
 }
 
+// เรนเดอร์รายการอะไหล่ของเดือนนั้นเป็นลิสต์ที่อ่านง่าย (ชื่อ · รหัส ชิดซ้าย, จำนวนชิดขวา) แทนพารากราฟยาวๆ
+function receivedItemsListHtml(items) {
+  if (!items.length) return "";
+  const rows = items
+    .slice()
+    .sort((a, b) => b.qty - a.qty)
+    .map(it => `<li><span class="item-name">${it.name} <span class="item-sku">(${it.sku})</span></span><span class="item-qty">×${fmtInt(it.qty)}</span></li>`)
+    .join("");
+  return `<tr><td colspan="2" class="received-items-cell"><ul class="received-items-list">${rows}</ul></td></tr>`;
+}
+
 function tableReceivedQty(agg) {
   const data = agg.receivedMonthlyQty || Array(12).fill(0);
   const byMonth = receivedItemsByMonth(agg);
   let body = "";
   for (let m = 0; m < 12; m++) {
     body += `<tr><td>${MONTH_LABELS[m]}</td><td>${fmtInt(data[m])}</td></tr>`;
-    const items = byMonth[m];
-    if (items.length) {
-      const detail = items.map(it => `${it.name} (${it.sku}) ×${fmtInt(it.qty)}`).join(" · ");
-      body += `<tr><td colspan="2" style="font-size:11.5px;color:var(--ink-soft);padding-top:0;">${detail}</td></tr>`;
-    }
+    body += receivedItemsListHtml(byMonth[m]);
   }
   const total = data.reduce((a,b)=>a+b,0);
   body += `<tr><td>รวมทั้งปี</td><td>${fmtInt(total)}</td></tr>`;
@@ -944,11 +968,7 @@ function tableReceivedValue(agg) {
   let body = "";
   for (let m = 0; m < 12; m++) {
     body += `<tr><td>${MONTH_LABELS[m]}</td><td>${fmtBaht(data[m])}</td></tr>`;
-    const items = byMonth[m];
-    if (items.length) {
-      const detail = items.map(it => `${it.name} (${it.sku}) ×${fmtInt(it.qty)}`).join(" · ");
-      body += `<tr><td colspan="2" style="font-size:11.5px;color:var(--ink-soft);padding-top:0;">${detail}</td></tr>`;
-    }
+    body += receivedItemsListHtml(byMonth[m]);
   }
   const total = data.reduce((a,b)=>a+b,0);
   body += `<tr><td>รวมทั้งปี</td><td>${fmtBaht(total)}</td></tr>`;
