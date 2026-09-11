@@ -37,6 +37,8 @@
     --teal-soft:#D3E6DF;
     --rust:#A5432B;
     --rust-soft:#F0D6CC;
+    --azure:#3B6EA5;
+    --azure-soft:#D8E4F0;
     --radius: 3px;
     font-size: 15px;
   }
@@ -117,6 +119,7 @@
   .split-bar .seg.normal{background:var(--teal);}
   .stat-total{font-size:11px;color:var(--ink-soft);margin-top:8px;border-top:1px dashed var(--line);padding-top:7px;}
   .stat-total b{color:var(--ink);font-family:'IBM Plex Mono',monospace;}
+  .stat-simple .val{font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;color:var(--azure);}
 
   /* ---------- Charts ---------- */
   .charts-grid{
@@ -270,15 +273,6 @@
   .month-group .month-items{padding:0 4px 6px;}
   .month-group .log-item{padding-left:20px;}
 
-  /* รายการอะไหล่ที่รับเข้า แจงต่อท้ายแต่ละเดือน — จัดเรียงเป็นแถวเดียวกับสไตล์ "รายการสินค้า" (code-chip + ชื่อ + ตัวเลขชิดขวา) */
-  .received-item-list{display:flex; flex-direction:column; gap:6px;}
-  .received-item{
-    display:flex; align-items:center; gap:10px; font-size:12.5px; color:var(--ink);
-    padding:2px 0;
-  }
-  .received-item .name-cell{flex:1; max-width:none;}
-  .received-item .num{margin-left:auto; white-space:nowrap; font-family:'IBM Plex Mono',monospace; color:var(--ink-soft);}
-
   footer.note{text-align:center; font-size:11.5px; color:var(--ink-soft); padding:30px 20px 10px;}
 
   @media (max-width:900px){
@@ -334,20 +328,15 @@
   </div>
 
   <div class="section-title">ยอดรับเข้าอะไหล่รายเดือน</div>
-  <p class="section-note">อ้างอิงจากแท็บ "ยอดรับเข้าอะไหล่" โดยตรง — แยกเป็นจำนวน (ชิ้น) และมูลค่า (บาท จากราคาขาย/หน่วยในชีตหลัก) ยังไม่เทียบกับยอดขาย/โอนออก — ดูรายละเอียดว่าแต่ละเดือนมีอะไหล่ตัวไหนเข้าบ้างได้ที่แท็บ "ประวัติการรับเข้า" ด้านล่าง</p>
+  <p class="section-note">อ้างอิงจากแท็บ "ยอดรับเข้าอะไหล่" ในชีตโดยตรง — เป็นยอดรับเข้าของอะไหล่ทั้งหมด (ไม่ได้จำกัดเฉพาะรายการ Dead Stock ในตารางด้านล่าง) รวมทุกรายการต่อเดือน</p>
+  <div class="summary-row" id="summaryRowReceive" style="grid-template-columns:repeat(2,1fr); margin-bottom:16px;"></div>
   <div class="charts-grid">
-    <div class="chart-card" data-chart="chartReceivedQty">
-      <h4>ยอดรับเข้าอะไหล่ (จำนวนชิ้น) รายเดือน</h4>
-      <div class="chart-wrap"><canvas id="chartReceivedQty"></canvas></div>
-      <div class="expand-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>คลิกเพื่อดูตัวเลขรายเดือน</div>
-    </div>
-    <div class="chart-card" data-chart="chartReceivedValue">
-      <h4>มูลค่ายอดรับเข้าอะไหล่ (บาท) รายเดือน</h4>
-      <div class="chart-wrap"><canvas id="chartReceivedValue"></canvas></div>
+    <div class="chart-card full" data-chart="chartReceive">
+      <h4>ยอดรับเข้าอะไหล่รายเดือน (จำนวนชิ้น)</h4>
+      <div class="chart-wrap"><canvas id="chartReceive"></canvas></div>
       <div class="expand-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>คลิกเพื่อดูตัวเลขรายเดือน</div>
     </div>
   </div>
-
 
   <div class="section-title">ข้อมูลการลงขาย — Facebook / Shopee</div>
   <p class="section-note">อ้างอิงจากคอลัมน์ "ช่องทางการลงขาย 1" (FB) และ "ช่องทางการลงขาย 2" (Shopee) โดยตรง — เป็น <b>จำนวนรายการที่ลงขาย</b> (นับจากวันที่ลงขาย) ไม่ใช่ยอดขายเป็นบาท และไม่ปนกับกราฟยอดเคลื่อนไหวสต็อกด้านบน</p>
@@ -373,7 +362,7 @@
     <button class="tab-btn active" data-tab="products">รายการสินค้า</button>
     <button class="tab-btn" data-tab="movements">ประวัติการเคลื่อนไหว</button>
     <button class="tab-btn" data-tab="listings">ประวัติการลงขาย</button>
-    <button class="tab-btn" data-tab="received">ประวัติการรับเข้า</button>
+    <button class="tab-btn" data-tab="receiving">ประวัติการรับเข้า</button>
   </div>
 
   <!-- PRODUCTS PANEL -->
@@ -432,10 +421,10 @@
     </div>
   </div>
 
-  <!-- RECEIVED PANEL -->
-  <div class="panel" id="panel-received">
+  <!-- RECEIVING PANEL -->
+  <div class="panel" id="panel-receiving">
     <div class="table-wrap" style="padding:6px 14px;">
-      <div class="log-list" id="receivedLogList"></div>
+      <div class="log-list" id="receivingLogList"></div>
     </div>
   </div>
 
@@ -463,12 +452,11 @@
    ต่อกับ Apps Script Web App: วางลิงก์ที่ได้จาก Deploy > Web app ตรงนี้
    ปล่อยว่างไว้ = โหมดทดสอบด้วย mock data
    ========================================================================= */
-const API_URL = "https://script.google.com/macros/s/AKfycbyFcCJ7S0lIzfyz7QQEklJbng1Cnd8a33qFqRZTyAtVuUTCVtqXSBS4A2LsJh135I3yww/exec"; // เช่น "https://script.google.com/macros/s/XXXXXXXX/exec"
+const API_URL = "https://script.google.com/macros/s/AKfycbxpVIA1DbPrDGJ4zf-s0dyJEOMj9ytNbZqJARjtD7DMpn7Mk-eLDIovWS-LyWik_yvhJw/exec"; // เช่น "https://script.google.com/macros/s/XXXXXXXX/exec"
 
 const MONTH_LABELS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 const COLOR_DEAD = "#A5432B";
 const COLOR_NORMAL = "#2F6F62";
-const COLOR_RECEIVED = "#8B5E3C";
 
 /* ---------------- Mock data (mirrors the real sheet's columns) --------- */
 let STATE = {
@@ -496,16 +484,17 @@ let STATE = {
     { sku:"GEN-0002", name:"ใบมีดเครื่องปั่นสแตนเลส (อะไหล่ขายดี)", channel:"FB", date:"05-01-69", note:"" },
     { sku:"GEN-0003", name:"สายไฟเครื่องครัวมาตรฐาน 1.5 เมตร", channel:"SHOPEE", date:"12-02-69", note:"" },
   ],
-  // "ประวัติการรับเข้า" (mock) — รายการอะไหล่ที่รับเข้าคลังแต่ละตัว แต่ละเดือน จากแท็บ "ยอดรับเข้าอะไหล่"
-  // price มาจากการจับคู่รหัสกับ "ราคาขาย" ในชีตหลัก (เหมือนที่ backend ทำจริง)
-  receivedLog: [
-    { sku:"GEN-0001", name:"แก้วปั่นสแตนเลส 1.5L (สต็อกหมุนเวียน)", month:1, qty:20, price:320, value:6400 },
-    { sku:"GEN-0002", name:"ใบมีดเครื่องปั่นสแตนเลส (อะไหล่ขายดี)", month:1, qty:30, price:180, value:5400 },
-    { sku:"EQ-WC-0002", name:"Mosa Piston Valve แกนหัวบีบอลูมิเนียม 1610-009-01", month:3, qty:10, price:150, value:1500 },
-    { sku:"GEN-0003", name:"สายไฟเครื่องครัวมาตรฐาน 1.5 เมตร", month:4, qty:15, price:90, value:1350 },
-    { sku:"SP-BD-0025", name:"BBL800/35A Speed Control PCB บอร์ดคอนโทรล", month:4, qty:5, price:1500, value:7500 },
-    { sku:"GEN-0001", name:"แก้วปั่นสแตนเลส 1.5L (สต็อกหมุนเวียน)", month:6, qty:12, price:320, value:3840 },
-    { sku:"GEN-0002", name:"ใบมีดเครื่องปั่นสแตนเลส (อะไหล่ขายดี)", month:7, qty:18, price:180, value:3240 },
+  // Mock data สำหรับแท็บ "ยอดรับเข้าอะไหล่" — เดือน 1=ม.ค. ... 12=ธ.ค.
+  receivedItems: [
+    { sku:"SP-BD-0012", name:"JTC TM767 โถปั่น+ชุดใบมีด2.0 L (9000-009)", months:{1:2,2:0,3:0,4:3,5:0,6:0,7:0,8:1,9:0,10:0,11:0,12:0}, total:6 },
+    { sku:"SP-DP-0005", name:"Crathco 1012 O-Ring ยางกันซึม", months:{1:10,2:10,3:0,4:0,5:0,6:0,7:20,8:0,9:0,10:0,11:0,12:0}, total:40 },
+    { sku:"SP-ES-0169", name:"RTL Oscar 09200014 Pressostat", months:{1:10,2:0,3:0,4:0,5:5,6:0,7:0,8:0,9:0,10:0,11:0,12:0}, total:15 },
+  ],
+  receivingLog: [
+    { sku:"SP-BD-0012", name:"JTC TM767 โถปั่น+ชุดใบมีด2.0 L (9000-009)", month:1, qty:2, note:"" },
+    { sku:"SP-BD-0012", name:"JTC TM767 โถปั่น+ชุดใบมีด2.0 L (9000-009)", month:4, qty:3, note:"" },
+    { sku:"SP-DP-0005", name:"Crathco 1012 O-Ring ยางกันซึม", month:1, qty:10, note:"" },
+    { sku:"SP-DP-0005", name:"Crathco 1012 O-Ring ยางกันซึม", month:7, qty:20, note:"" },
   ]
 };
 
@@ -605,6 +594,20 @@ function computeAggregates(products) {
   return agg;
 }
 
+// สรุปยอดรับเข้าอะไหล่รายเดือน จากแท็บ "ยอดรับเข้าอะไหล่" — รวมทุกรายการอะไหล่ (ไม่จำกัดเฉพาะ Dead Stock)
+function computeReceivingAggregates(receivedItems) {
+  const monthlyQty = Array(12).fill(0);
+  let totalQty = 0;
+  (receivedItems || []).forEach(it => {
+    for (let m = 1; m <= 12; m++) {
+      const qty = Number((it.months && it.months[m]) || 0);
+      monthlyQty[m - 1] += qty;
+      totalQty += qty;
+    }
+  });
+  return { monthlyQty, totalQty, itemCount: (receivedItems || []).length };
+}
+
 let charts = {};
 let modalChart = null;
 let LAST_AGG = null;
@@ -683,6 +686,19 @@ function renderSummary(agg) {
     splitCard("มูลค่าคงเหลือรวม", agg.dead.remainingValue, agg.normal.remainingValue, "รวมทั้งหมด", totalValue, fmtBaht) +
     splitCard("ลงขายแล้วบน Facebook", agg.dead.fbListed, agg.normal.fbListed, "รวมทั้งหมด", totalFb, fmtInt) +
     splitCard("ลงขายแล้วบน Shopee", agg.dead.shopeeListed, agg.normal.shopeeListed, "รวมทั้งหมด", totalShopee, fmtInt);
+}
+
+function renderReceiveSummary(recvAgg) {
+  document.getElementById("summaryRowReceive").innerHTML = `
+    <div class="stat-card stat-simple">
+      <div class="label">ยอดรับเข้ารวมทั้งปี (ชิ้น)</div>
+      <div class="val">${fmtInt(recvAgg.totalQty)}</div>
+    </div>
+    <div class="stat-card stat-simple">
+      <div class="label">จำนวนรายการอะไหล่ที่มีการรับเข้า</div>
+      <div class="val">${fmtInt(recvAgg.itemCount)}</div>
+    </div>
+  `;
 }
 
 function upsertChart(id, config) {
@@ -795,29 +811,16 @@ function buildListingValueConfig(agg, { large = false } = {}) {
   };
 }
 
-function buildReceivedQtyConfig(agg, { large = false } = {}) {
+function buildReceiveConfig(agg, { large = false } = {}) {
   return {
     type: "bar",
     data: {
       labels: MONTH_LABELS,
       datasets: [
-        { label:"ยอดรับเข้าอะไหล่ (ชิ้น)", data: agg.receivedMonthlyQty || Array(12).fill(0), backgroundColor: COLOR_RECEIVED, borderRadius: 2 }
+        { label:"ยอดรับเข้า (ชิ้น)", data: agg.receiving.monthlyQty, backgroundColor: "#3B6EA5", borderRadius: 2 }
       ]
     },
     options: baseOptions({ large, valueFormat: large ? fmtInt : null })
-  };
-}
-
-function buildReceivedValueConfig(agg, { large = false } = {}) {
-  return {
-    type: "bar",
-    data: {
-      labels: MONTH_LABELS,
-      datasets: [
-        { label:"มูลค่ายอดรับเข้าอะไหล่ (บาท)", data: agg.receivedMonthlyValue || Array(12).fill(0), backgroundColor: "#B08947", borderRadius: 2 }
-      ]
-    },
-    options: baseOptions({ large, valueFormat: large ? fmtBaht : null })
   };
 }
 
@@ -825,11 +828,10 @@ const CHART_DEFS = {
   chartQty:           { title:"ยอดเคลื่อนไหว (จำนวนชิ้น) รายเดือน — Dead Stock vs สินค้าทั่วไป", build: buildQtyConfig,           table: tableQty },
   chartValue:         { title:"มูลค่ายอดเคลื่อนไหว (บาท) รายเดือน — Dead Stock vs สินค้าทั่วไป", build: buildValueConfig,         table: tableValue },
   chartShare:         { title:"สัดส่วนมูลค่าคงเหลือ",                                             build: buildShareConfig,         table: tableShare },
+  chartReceive:       { title:"ยอดรับเข้าอะไหล่รายเดือน (จำนวนชิ้น)",                             build: buildReceiveConfig,       table: tableReceive },
   chartChannel:       { title:"จำนวนสินค้าที่ลงขายแล้ว ตามช่องทาง",                                build: buildChannelConfig,       table: tableChannel },
   chartListingMonth:  { title:"แนวโน้มการลงขายรายเดือน — Facebook vs Shopee",                     build: buildListingMonthConfig,  table: tableListingMonth },
-  chartListingValue:  { title:"มูลค่าสินค้าที่ลงขายรายเดือน (บาท)",                                build: buildListingValueConfig,  table: tableListingValue },
-  chartReceivedQty:   { title:"ยอดรับเข้าอะไหล่ (จำนวนชิ้น) รายเดือน",                              build: buildReceivedQtyConfig,   table: tableReceivedQty },
-  chartReceivedValue: { title:"มูลค่ายอดรับเข้าอะไหล่ (บาท) รายเดือน",                              build: buildReceivedValueConfig, table: tableReceivedValue }
+  chartListingValue:  { title:"มูลค่าสินค้าที่ลงขายรายเดือน (บาท)",                                build: buildListingValueConfig,  table: tableListingValue }
 };
 
 function renderCharts(agg) {
@@ -837,11 +839,10 @@ function renderCharts(agg) {
   upsertChart("chartQty", buildQtyConfig(agg));
   upsertChart("chartValue", buildValueConfig(agg));
   upsertChart("chartShare", buildShareConfig(agg));
+  upsertChart("chartReceive", buildReceiveConfig(agg));
   upsertChart("chartChannel", buildChannelConfig(agg));
   upsertChart("chartListingMonth", buildListingMonthConfig(agg));
   upsertChart("chartListingValue", buildListingValueConfig(agg));
-  upsertChart("chartReceivedQty", buildReceivedQtyConfig(agg));
-  upsertChart("chartReceivedValue", buildReceivedValueConfig(agg));
 }
 
 /* ---------- ตารางตัวเลขประกอบกราฟ (แสดงใน modal เมื่อคลิกกราฟ) ---------- */
@@ -881,6 +882,17 @@ function tableShare(agg) {
   return tableRows(`<thead><tr><th>หมวดหมู่</th><th>มูลค่าคงเหลือ</th><th>สัดส่วน</th></tr></thead><tbody>${body}</tbody>`);
 }
 
+function tableReceive(agg) {
+  let body = "";
+  for (let m = 0; m < 12; m++) {
+    body += `<tr><td>${MONTH_LABELS[m]}</td><td>${fmtInt(agg.receiving.monthlyQty[m])}</td></tr>`;
+  }
+  const total = agg.receiving.monthlyQty.reduce((a,b)=>a+b,0);
+  body += `<tr><td>รวมทั้งปี</td><td>${fmtInt(total)}</td></tr>`;
+  const note = `<p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px;">* อ้างอิงจากแท็บ "ยอดรับเข้าอะไหล่" โดยตรง เป็นยอดรับเข้าของอะไหล่ทั้งหมด ไม่ได้จำกัดเฉพาะรายการ Dead Stock ในตารางสินค้าด้านบน</p>`;
+  return tableRows(`<thead><tr><th>เดือน</th><th>ยอดรับเข้า (ชิ้น)</th></tr></thead><tbody>${body}</tbody>`) + note;
+}
+
 function tableChannel(agg) {
   const fbTotal = agg.dead.fbListed + agg.normal.fbListed;
   const spTotal = agg.dead.shopeeListed + agg.normal.shopeeListed;
@@ -914,64 +926,6 @@ function tableListingValue(agg) {
   body += `<tr><td>รวมทั้งปี</td><td>${fmtBaht(total)}</td></tr>`;
   const note = `<p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px;">* มูลค่านี้คำนวณจากจำนวนที่ขายได้จริงในแต่ละเดือน (คอลัมน์ "จำนวนที่โอนออกแยกตามเดือน 2026") × ราคาขาย/หน่วย โดยนับเฉพาะสินค้าที่มีการลงขาย (Facebook และ/หรือ Shopee — อ้างอิงจากคอลัมน์ "ช่องทางการลงขาย 1/2") นับรวมครั้งเดียวต่อสินค้าต่อเดือน แม้จะลงขายทั้งสองช่องทางพร้อมกันก็ไม่นับซ้ำ</p>`;
   return tableRows(`<thead><tr><th>เดือน</th><th>มูลค่าที่ลงขายแล้ว</th></tr></thead><tbody>${body}</tbody>`) + note;
-}
-
-// จัดกลุ่มรายการที่รับเข้า (receivedLog) ตามเดือน เพื่อใช้แจงในตารางกำกับกราฟ
-function receivedItemsByMonth(agg) {
-  const byMonth = Array.from({ length: 12 }, () => []);
-  (agg.receivedLog || []).forEach(row => {
-    if (row.month >= 1 && row.month <= 12) byMonth[row.month - 1].push(row);
-  });
-  return byMonth;
-}
-
-// จัดเรียงรายการอะไหล่ที่รับเข้าในแต่ละเดือนให้เป็นระเบียบ (รหัสสินค้า A→Z) เหมือนการเรียงเริ่มต้นในตาราง "รายการสินค้า"
-function sortReceivedItems(items) {
-  return [...items].sort((a, b) => String(a.sku).localeCompare(String(b.sku)));
-}
-
-// แสดงรายการอะไหล่ที่รับเข้าเป็นแถวเดียวกับสไตล์ "รายการสินค้า" (code-chip + ชื่อสินค้า + ตัวเลขชิดขวา)
-function receivedItemRows(items, valueFmt) {
-  return `<div class="received-item-list">${sortReceivedItems(items).map(it => `
-    <div class="received-item">
-      <span class="code-chip">${it.sku}</span>
-      <span class="name-cell">${it.name}</span>
-      <span class="num">${valueFmt(it)}</span>
-    </div>`).join("")}</div>`;
-}
-
-function tableReceivedQty(agg) {
-  const data = agg.receivedMonthlyQty || Array(12).fill(0);
-  const byMonth = receivedItemsByMonth(agg);
-  let body = "";
-  for (let m = 0; m < 12; m++) {
-    body += `<tr><td>${MONTH_LABELS[m]}</td><td>${fmtInt(data[m])}</td></tr>`;
-    const items = byMonth[m];
-    if (items.length) {
-      body += `<tr><td colspan="2" style="padding-top:0;">${receivedItemRows(items, it => `×${fmtInt(it.qty)}`)}</td></tr>`;
-    }
-  }
-  const total = data.reduce((a,b)=>a+b,0);
-  body += `<tr><td>รวมทั้งปี</td><td>${fmtInt(total)}</td></tr>`;
-  const note = `<p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px;">* ผลรวมจำนวนอะไหล่ที่รับเข้าคลังทุกตัว จากแท็บ "ยอดรับเข้าอะไหล่" แยกตามเดือน (เรียงตามรหัสสินค้า A→Z) ยังไม่ได้เทียบกับยอดขาย/โอนออก ดูรายการเต็มได้ที่แท็บ "ประวัติการรับเข้า"</p>`;
-  return tableRows(`<thead><tr><th>เดือน</th><th>ยอดรับเข้า (ชิ้น)</th></tr></thead><tbody>${body}</tbody>`) + note;
-}
-
-function tableReceivedValue(agg) {
-  const data = agg.receivedMonthlyValue || Array(12).fill(0);
-  const byMonth = receivedItemsByMonth(agg);
-  let body = "";
-  for (let m = 0; m < 12; m++) {
-    body += `<tr><td>${MONTH_LABELS[m]}</td><td>${fmtBaht(data[m])}</td></tr>`;
-    const items = byMonth[m];
-    if (items.length) {
-      body += `<tr><td colspan="2" style="padding-top:0;">${receivedItemRows(items, it => `×${fmtInt(it.qty)}`)}</td></tr>`;
-    }
-  }
-  const total = data.reduce((a,b)=>a+b,0);
-  body += `<tr><td>รวมทั้งปี</td><td>${fmtBaht(total)}</td></tr>`;
-  const note = `<p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px;">* มูลค่า = จำนวนที่รับเข้า × ราคาขาย/หน่วย (จับคู่รหัสอะไหล่กับคอลัมน์ "ราคาขาย" ในชีตหลัก) ไม่ใช่ราคาทุนจริง เพราะชีตไม่มีคอลัมน์ราคาทุนแยกต่างหาก เรียงตามรหัสสินค้า A→Z</p>`;
-  return tableRows(`<thead><tr><th>เดือน</th><th>มูลค่ารับเข้า (บาท)</th></tr></thead><tbody>${body}</tbody>`) + note;
 }
 
 /* ---------- Modal: คลิกที่การ์ดกราฟเพื่อดูกราฟขนาดใหญ่ + ตัวเลขรายเดือน/หมวดหมู่ ---------- */
@@ -1147,18 +1101,17 @@ function renderListingLog() {
   );
 }
 
-
-function renderReceivedLog() {
-  const el = document.getElementById("receivedLogList");
+function renderReceivingLog() {
+  const el = document.getElementById("receivingLogList");
   renderGroupedLog(
     el,
-    STATE.receivedLog || [],
+    STATE.receivingLog || [],
     row => Number(row.month) || null,
     row => `
       <div class="log-item">
-        <span class="ts">-</span>
-        <span class="tag" style="background:${COLOR_RECEIVED};color:#fff;">${monthLabelOf(row.month)}</span>
-        <span><span class="code-chip">${row.sku}</span> ${row.name} — รับเข้า ${fmtInt(row.qty)} ชิ้น</span>
+        <span class="ts">${row.ts ? formatTs(row.ts) : "-"}</span>
+        <span class="tag" style="background:var(--azure-soft);color:var(--azure);">${monthLabelOf(row.month)}</span>
+        <span><span class="code-chip">${row.sku}</span> ${row.name} — รับเข้า +${row.qty} ${row.note ? '· '+row.note : ''}</span>
         <span class="num"></span>
       </div>`,
     "ยังไม่มีประวัติการรับเข้า",
@@ -1186,21 +1139,6 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
   document.getElementById(id).addEventListener("change", renderProducts);
 });
 
-// รวมยอดรับเข้ารายเดือน (จำนวน + มูลค่า) จาก receivedLog — ใช้ทั้งโหมด mock และโหมด live
-// (โหมด live ก็มี receivedMonthlyQty/receivedMonthlyValue มาจาก backend แล้ว แต่คำนวณจาก log ซ้ำที่นี่
-// เพื่อให้แน่ใจว่ากราฟกับตารางแจงรายการตรงกันเป๊ะเสมอ)
-function deriveReceivedMonthly(log) {
-  const qty = Array(12).fill(0);
-  const value = Array(12).fill(0);
-  (log || []).forEach(row => {
-    if (row.month >= 1 && row.month <= 12) {
-      qty[row.month - 1] += Number(row.qty) || 0;
-      value[row.month - 1] += Number(row.value) || 0;
-    }
-  });
-  return { qty, value };
-}
-
 async function boot() {
   document.getElementById("modeBanner").style.display = isLive() ? "none" : "block";
   try {
@@ -1210,16 +1148,14 @@ async function boot() {
     alert("โหลดข้อมูลไม่สำเร็จ: " + e.message);
   }
   const agg = computeAggregates(STATE.products.map(p => ({...p, code: p.code || p.sku})));
-  const receivedMonthly = deriveReceivedMonthly(STATE.receivedLog || []);
-  agg.receivedMonthlyQty = receivedMonthly.qty;
-  agg.receivedMonthlyValue = receivedMonthly.value;
-  agg.receivedLog = STATE.receivedLog || [];
+  agg.receiving = computeReceivingAggregates(STATE.receivedItems || []);
   renderSummary(agg);
+  renderReceiveSummary(agg.receiving);
   renderCharts(agg);
   renderProducts();
   renderMovementLog();
   renderListingLog();
-  renderReceivedLog();
+  renderReceivingLog();
 }
 boot();
 </script>
